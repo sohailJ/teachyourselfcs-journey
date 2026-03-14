@@ -4,94 +4,77 @@ A mix of self-written and sourced problems. Solve before looking at the solution
 
 ---
 
-## Exercise 1 — Second Highest Salary
+## Exercise 1 — Department Manager and Employee Salary Comparison
 
-**Problem:** Find the second highest salary from an `employees` table. Return NULL if it doesn't exist.
+**Problem:** Oracle is comparing the monthly wages of their employees in each department to those of their managers and co-workers.
 
-```sql
--- Schema
-CREATE TABLE employees (id INT, name TEXT, salary INT);
-```
+You have been tasked with creating a table that compares an employee's salary to that of their manager and to the average salary of their department.
 
-<details>
-<summary>Solution</summary>
+It is expected that the department manager's salary and the average salary of employee's from that department are in their own separate column.
 
-```sql
-SELECT MAX(salary) AS second_highest
-FROM employees
-WHERE salary < (SELECT MAX(salary) FROM employees);
-```
+Order the employee's salary from highest to lowest based on their department.
+Your output should contain the department, employee id, salary of that employee, salary of that employee's manager and the average salary from employee's within that department rounded to the nearest whole number.
 
-Or with window functions:
-```sql
-SELECT DISTINCT salary
-FROM (
-    SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk
-    FROM employees
-) ranked
-WHERE rnk = 2;
-```
+Note: Oracle have requested that you not include the department manager's salary in the average salary for that department in order to avoid skewing the results. Managers of each department do not report to anyone higher up; they are their own manager.
 
-</details>
+[link to exercice](https://platform.stratascratch.com/coding/2146-department-manager-and-employee-salary-comparison?code_type=1)
 
----
-
-## Exercise 2 — Departments with No Employees
-
-**Problem:** Find departments that have no employees.
+![alt text](image.png)
 
 ```sql
--- Schema
-CREATE TABLE departments (id INT, name TEXT);
-CREATE TABLE employees (id INT, name TEXT, dept_id INT);
+WITH avg_salary_by_department AS (
+    SELECT department, ROUND(AVG(salary)) AS avg_salary
+    FROM employee_o AS E
+    WHERE E.employee_title != 'Manager'
+    GROUP BY department
+),
+manager_salary_by_department AS (
+    SELECT department, salary AS manager_salary
+    FROM employee_o as E
+    WHERE E.employee_title = 'Manager'
+),
+avg_salary_and_manager_salary_by_department AS (
+    SELECT ms.department, avg_salary, manager_salary
+    FROM manager_salary_by_department ms NATURAL JOIN avg_salary_by_department
+)
+SELECT       ASM.department,
+                       E.id, 
+                   E.salary, 
+         ASM.manager_salary, 
+             ASM.avg_salary
+        FROM avg_salary_and_manager_salary_by_department AS ASM
+NATURAL JOIN employee_o as E
+ORDER BY department, salary DESC;
+
 ```
 
-<details>
-<summary>Solution</summary>
+
+## Exercice 2 - Reviewed flags of top videos
+For the video (or videos) that received the most user flags, how many of these flags were reviewed by YouTube? Output the video ID and the corresponding number of reviewed flags.  Ignore flags that do not have a corresponding flag_id.
+
+![alt text](image-1.png)
+![alt text](image-2.png)
 
 ```sql
--- Using LEFT JOIN
-SELECT d.name
-FROM departments d
-LEFT JOIN employees e ON d.id = e.dept_id
-WHERE e.id IS NULL;
-
--- Using NOT EXISTS
-SELECT name FROM departments d
-WHERE NOT EXISTS (
-    SELECT 1 FROM employees WHERE dept_id = d.id
-);
+WITH flag_counts AS (
+    SELECT video_id, COUNT(flag_id) AS cnt
+    FROM   user_flags
+    GROUP BY video_id
+),
+top_videos AS (
+    SELECT video_id
+    FROM   flag_counts
+    WHERE  cnt = (SELECT MAX(cnt) FROM flag_counts)
+),
+top_videos_flags AS (
+SELECT video_id, fr.flag_id AS flag_id
+FROM user_flags ur
+NATURAL JOIN top_videos
+LEFT JOIN flag_review fr
+ON ur.flag_id = fr.flag_id
+WHERE ur.flag_id IS NOT NULL AND fr.reviewed_by_yt
+)
+SELECT video_id, COUNT(flag_id)
+FROM   top_videos_flags
+GROUP BY video_id;
 ```
-
-</details>
-
----
-
-## Exercise 3 — Students Above Their Department Average
-
-**Problem:** Find students whose grade is above the average grade of their department.
-
-```sql
--- Schema
-CREATE TABLE students (id INT, name TEXT, dept TEXT, grade FLOAT);
-```
-
-<details>
-<summary>Solution</summary>
-
-```sql
-SELECT s.name, s.dept, s.grade
-FROM students s
-JOIN (
-    SELECT dept, AVG(grade) AS avg_grade
-    FROM students
-    GROUP BY dept
-) avg ON s.dept = avg.dept
-WHERE s.grade > avg.avg_grade;
-```
-
-</details>
-
----
-
-*(Add more exercises as you go)*
