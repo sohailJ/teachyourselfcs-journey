@@ -2,7 +2,7 @@
 
 ## Lecture 6 — B+ Trees
 
-*(notes to fill in)*
+load
 
 ---
 
